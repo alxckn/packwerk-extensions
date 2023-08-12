@@ -50,11 +50,11 @@ module Packwerk
 
       sig do
         override
-          .params(listed_offense: Packwerk::ReferenceOffense)
+          .params(offense: Packwerk::ReferenceOffense)
           .returns(T::Boolean)
       end
-      def strict_mode_violation?(listed_offense)
-        constant_package = listed_offense.reference.package
+      def strict_mode_violation?(offense)
+        constant_package = offense.reference.package
         constant_package.config['enforce_architecture'] == 'strict'
       end
 

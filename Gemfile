@@ -4,4 +4,5 @@ source 'https://rubygems.org'
 
 gemspec
 
-gem 'packwerk', git: 'https://github.com/Shopify/packwerk', branch: 'main'
+gem 'packwerk', path: '../packwerk'
+gem 'byebug'

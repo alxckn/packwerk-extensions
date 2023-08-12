@@ -106,11 +106,125 @@ module Packwerk
         MSG
       end
 
+      test 'does not report any violation as strict in non strict mode' do
+        use_template(:minimal)
+
+        source_package = Packwerk::Package.new(name: 'components/source', config: { 'enforce_privacy' => true })
+        destination_package = Packwerk::Package.new(name: 'destination_package', config: { 'enforce_privacy' => true })
+        checker = privacy_checker
+
+        write_app_file('components/source/package_todo.yml', <<~YML.strip)
+          ---
+          "destination_package":
+            "::SomeName":
+              violations:
+              - privacy
+              files:
+              - components/source/some/path.rb
+        YML
+
+        known_offense = Packwerk::ReferenceOffense.new(
+          reference: build_reference(source_package: source_package, destination_package: destination_package, path: 'components/source/some/path.rb'),
+          violation_type: Packwerk::Privacy::Checker::VIOLATION_TYPE,
+          message: 'some message'
+        )
+        unknown_offense = Packwerk::ReferenceOffense.new(
+          reference: build_reference(destination_package: destination_package),
+          violation_type: Packwerk::Privacy::Checker::VIOLATION_TYPE,
+          message: 'some message'
+        )
+
+        refute checker.strict_mode_violation?(bundle_offense_with_package_todo(known_offense))
+        refute checker.strict_mode_violation?(bundle_offense_with_package_todo(unknown_offense))
+      end
+
+      test 'reports any violation as strict in strict mode' do
+        use_template(:minimal)
+
+        source_package = Packwerk::Package.new(name: 'components/source', config: { 'enforce_privacy' => 'strict' })
+        destination_package = Packwerk::Package.new(name: 'destination_package', config: { 'enforce_privacy' => 'strict' })
+        checker = privacy_checker
+
+        write_app_file('components/source/package_todo.yml', <<~YML.strip)
+          ---
+          "destination_package":
+            "::SomeName":
+              violations:
+              - privacy
+              files:
+              - components/source/some/path.rb
+        YML
+
+        known_offense = Packwerk::ReferenceOffense.new(
+          reference: build_reference(source_package: source_package, destination_package: destination_package, path: 'components/source/some/path.rb'),
+          violation_type: Packwerk::Privacy::Checker::VIOLATION_TYPE,
+          message: 'some message'
+        )
+        unknown_offense = Packwerk::ReferenceOffense.new(
+          reference: build_reference(destination_package: destination_package),
+          violation_type: Packwerk::Privacy::Checker::VIOLATION_TYPE,
+          message: 'some message'
+        )
+
+        assert checker.strict_mode_violation?(bundle_offense_with_package_todo(known_offense))
+        assert checker.strict_mode_violation?(bundle_offense_with_package_todo(unknown_offense))
+      end
+
+      test 'only reports unlisted violations as strict in strict_for_new mode' do
+        use_template(:minimal)
+
+        source_package = Packwerk::Package.new(name: 'components/source', config: { 'enforce_privacy' => 'strict_for_new' })
+        destination_package = Packwerk::Package.new(name: 'destination_package', config: { 'enforce_privacy' => 'strict_for_new' })
+        checker = privacy_checker
+
+        write_app_file('components/source/package_todo.yml', <<~YML.strip)
+          ---
+          "destination_package":
+            "::SomeName":
+              violations:
+              - privacy
+              files:
+              - components/source/some/path.rb
+        YML
+
+        known_offense = Packwerk::ReferenceOffense.new(
+          reference: build_reference(source_package: source_package, destination_package: destination_package, path: 'components/source/some/path.rb'),
+          violation_type: Packwerk::Privacy::Checker::VIOLATION_TYPE,
+          message: 'some message'
+        )
+        unknown_offense = Packwerk::ReferenceOffense.new(
+          reference: build_reference(destination_package: destination_package),
+          violation_type: Packwerk::Privacy::Checker::VIOLATION_TYPE,
+          message: 'some message'
+        )
+
+        refute checker.strict_mode_violation?(bundle_offense_with_package_todo(known_offense))
+        assert checker.strict_mode_violation?(bundle_offense_with_package_todo(unknown_offense))
+      end
+
       private
 
       sig { returns(Checker) }
       def privacy_checker
         Privacy::Checker.new
+      end
+
+      sig { params(offense: ReferenceOffense).returns(Packwerk::ReferenceOffenseWithPackageTodo) }
+      def bundle_offense_with_package_todo(offense)
+        Packwerk::ReferenceOffenseWithPackageTodo.from_reference_offense(offense, package_todo: package_todo_for(offense.reference.package))
+      end
+
+      sig { params(package: Packwerk::Package).returns(Packwerk::PackageTodo) }
+      def package_todo_for(package)
+        Packwerk::PackageTodo.new(
+          package,
+          package_todo_file_for(package)
+        )
+      end
+
+      sig { params(package: Packwerk::Package).returns(String) }
+      def package_todo_file_for(package)
+        File.join(Packwerk::Configuration.from_path.root_path, package.name, 'package_todo.yml')
       end
     end
   end

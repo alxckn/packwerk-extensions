@@ -40,6 +40,15 @@ module Packwerk
         assert result.ok?
       end
 
+      test 'check_all returns success for when enforce_privacy is set to strict_for_new' do
+        use_template(:minimal)
+        merge_into_app_yaml_file('package.yml', { 'enforce_privacy' => 'strict_for_new' })
+
+        result = Packwerk::Privacy::Validator.new.call(package_set, config)
+
+        assert result.ok?
+      end
+
       test 'check_all returns success when inflector defines acronym' do
         use_template(:skeleton)
 

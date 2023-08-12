@@ -4,6 +4,8 @@
 require 'packwerk/privacy/package'
 require 'packwerk/privacy/validator'
 
+require 'byebug'
+
 module Packwerk
   module Privacy
     # Checks whether a given reference references a private constant of another package.
@@ -39,12 +41,24 @@ module Packwerk
 
       sig do
         override
-          .params(listed_offense: Packwerk::ReferenceOffense)
+          .params(offense: Packwerk::ReferenceOffenseWithPackageTodo)
           .returns(T::Boolean)
       end
-      def strict_mode_violation?(listed_offense)
-        publishing_package = listed_offense.reference.constant.package
-        publishing_package.config['enforce_privacy'] == 'strict'
+      def strict_mode_violation?(offense)
+        publishing_package = offense.reference.constant.package
+
+        case publishing_package.config['enforce_privacy']
+        when nil, false, true
+          false
+        when 'strict'
+          true
+        when 'strict_for_new'
+          return true if !offense.package_todo
+
+          !offense.package_todo.listed?(offense.reference, violation_type: offense.violation_type)
+        else
+          false
+        end
       end
 
       sig do
